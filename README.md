@@ -19,11 +19,11 @@ Use o [RUNME](https://github.com/stateful/runme) para facilitar a execução dos
 ```bash {name=criar-instancia}
 export PUBLIC_KEY_PATH="$HOME/.ssh/id_rsa.pub"
 export INSTALL_AUTOMATIC1111="true"
-export INSTALL_INVOKEAI="false"
+export INSTALL_INVOKEAI="true"
 export GUI_TO_START="automatic1111"
 export EBS_SIZE="80"
 
-aws ec2 import-key-pair --key-name stable-diffusion-aws --public-key-material fileb://${PUBLIC_KEY_PATH} --tag-specifications 'ResourceType=key-pair,Tags=[{Key=creator,Value=stable-diffusion-aws}]'
+aws ec2 import-key-pair --key-name sd-spot-aws --public-key-material fileb://${PUBLIC_KEY_PATH} --tag-specifications 'ResourceType=key-pair,Tags=[{Key=creator,Value=sd-spot-aws}]'
 
 # Obtem a última imagem Debian 12 Linux
 export AMI_ID=$(aws ec2 describe-images --owners 136693071363 --query "sort_by(Images, &CreationDate)[-1].ImageId" --filters "Name=name,Values=debian-12-amd64-*" | jq -r .)
@@ -31,18 +31,18 @@ export AMI_ID=$(aws ec2 describe-images --owners 136693071363 --query "sort_by(I
 export DEFAULT_VPC_ID=$(aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[0].VpcId' --output text)
 export SG_ID=$(aws ec2 create-security-group --group-name SSH-Only --description "Allow SSH from anywhere" --vpc-id $DEFAULT_VPC_ID --query 'GroupId' --output text)
 aws ec2 authorize-security-group-ingress --group-id $SG_ID --protocol tcp --port 22 --cidr 0.0.0.0/0
-aws ec2 create-tags --resources $SG_ID --tags Key=creator,Value=stable-diffusion-aws
+aws ec2 create-tags --resources $SG_ID --tags Key=creator,Value=sd-spot-aws
 
 aws ec2 run-instances \
     --no-cli-pager \
     --image-id $AMI_ID \
     --instance-type g4dn.xlarge \
-    --key-name stable-diffusion-aws \
+    --key-name sd-spot-aws \
     --security-group-ids $SG_ID \
     --block-device-mappings "DeviceName=/dev/xvda,Ebs={VolumeSize=${EBS_SIZE},VolumeType=gp3}" \
     --user-data file://setup.sh \
     --metadata-options "InstanceMetadataTags=enabled" \
-    --tag-specifications "ResourceType=spot-instances-request,Tags=[{Key=creator,Value=stable-diffusion-aws}]" "ResourceType=instance,Tags=[{Key=INSTALL_AUTOMATIC1111,Value=$INSTALL_AUTOMATIC1111},{Key=INSTALL_INVOKEAI,Value=$INSTALL_INVOKEAI},{Key=GUI_TO_START,Value=$GUI_TO_START}]" \
+    --tag-specifications "ResourceType=spot-instances-request,Tags=[{Key=creator,Value=sd-spot-aws}]" "ResourceType=instance,Tags=[{Key=INSTALL_AUTOMATIC1111,Value=$INSTALL_AUTOMATIC1111},{Key=INSTALL_INVOKEAI,Value=$INSTALL_INVOKEAI},{Key=GUI_TO_START,Value=$GUI_TO_START}]" \
     --instance-market-options 'MarketType=spot,SpotOptions={MaxPrice=0.20,SpotInstanceType=persistent,InstanceInterruptionBehavior=stop}'
 
 ```
@@ -50,11 +50,11 @@ aws ec2 run-instances \
 #### Criar um alarme para parar a instância após 15 minutos de inatividade (opcional)
 
 ```bash {name=criar-alarme, promptEnv=false}
-export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=stable-diffusion-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
+export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=sd-spot-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
 export INSTANCE_ID="$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST | jq -r '.SpotInstanceRequests[].InstanceId')"
 
 aws cloudwatch put-metric-alarm \
-    --alarm-name stable-diffusion-aws-stop-when-idle \
+    --alarm-name sd-spot-aws-stop-when-idle \
     --namespace AWS/EC2 \
     --metric-name CPUUtilization \
     --statistic Maximum \
@@ -70,7 +70,7 @@ aws cloudwatch put-metric-alarm \
 #### Conectar
 
 ```bash {name=conectar-via-ssh, promptEnv=false}
-export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=stable-diffusion-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
+export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=sd-spot-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
 export INSTANCE_ID="$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST | jq -r '.SpotInstanceRequests[].InstanceId')"
 export PUBLIC_IP="$(aws ec2 describe-instances --instance-id $INSTANCE_ID | jq -r '.Reservations[].Instances[].PublicIpAddress')"
 ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -L7860:localhost:7860 -L9090:localhost:9090 admin@$PUBLIC_IP
@@ -85,7 +85,7 @@ ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -L7860:localhost
 #### Parar Instância
 
 ```bash {name=parar-instancia, promptEnv=false}
-export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=stable-diffusion-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
+export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=sd-spot-aws' 'Name=state,Values=active,open' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
 export INSTANCE_ID="$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST | jq -r '.SpotInstanceRequests[].InstanceId')"
 aws ec2 stop-instances --instance-ids $INSTANCE_ID
 ```
@@ -93,7 +93,7 @@ aws ec2 stop-instances --instance-ids $INSTANCE_ID
 #### Iniciar Instância
 
 ```bash {name=iniciar-instancia, promptEnv=false}
-export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=stable-diffusion-aws' 'Name=state,Values=disabled' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
+export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=sd-spot-aws' 'Name=state,Values=disabled' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
 export INSTANCE_ID="$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST | jq -r '.SpotInstanceRequests[].InstanceId')"
 aws ec2 start-instances --instance-ids $INSTANCE_ID
 ```
@@ -101,10 +101,10 @@ aws ec2 start-instances --instance-ids $INSTANCE_ID
 #### Deletar Instância
 
 ```bash {name=limpar-tudo, promptEnv=false}
-export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=stable-diffusion-aws' 'Name=state,Values=active,open,disabled' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
+export SPOT_INSTANCE_REQUEST="$(aws ec2 describe-spot-instance-requests --filters 'Name=tag:creator,Values=sd-spot-aws' 'Name=state,Values=active,open,disabled' | jq -r '.SpotInstanceRequests[].SpotInstanceRequestId')"
 [[ -n $SPOT_INSTANCE_REQUEST ]] && export INSTANCE_ID="$(aws ec2 describe-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST | jq -r '.SpotInstanceRequests[].InstanceId')"
-export SG_ID="$(aws ec2 describe-security-groups --filters 'Name=tag:creator,Values=stable-diffusion-aws' --query 'SecurityGroups[*].GroupId' --output text)"
-export KEY_PAIR_NAME="$(aws ec2 describe-key-pairs --filters 'Name=tag:creator,Values=stable-diffusion-aws' --query 'KeyPairs[0].KeyName' --output text)"
+export SG_ID="$(aws ec2 describe-security-groups --filters 'Name=tag:creator,Values=sd-spot-aws' --query 'SecurityGroups[*].GroupId' --output text)"
+export KEY_PAIR_NAME="$(aws ec2 describe-key-pairs --filters 'Name=tag:creator,Values=sd-spot-aws' --query 'KeyPairs[0].KeyName' --output text)"
 [[ -n $SPOT_INSTANCE_REQUEST ]] && aws ec2 cancel-spot-instance-requests --spot-instance-request-ids $SPOT_INSTANCE_REQUEST
 if [[ -n $INSTANCE_ID ]]
 then
@@ -116,7 +116,7 @@ fi
 
 [[ -n $KEY_PAIR_NAME ]] && aws ec2 delete-key-pair --key-name $KEY_PAIR_NAME
 [[ -n $SG_ID ]] && aws ec2 delete-security-group --group-id $SG_ID
-aws cloudwatch delete-alarms --alarm-names stable-diffusion-aws-stop-when-idle
+aws cloudwatch delete-alarms --alarm-names sd-spot-aws-stop-when-idle
 ```
 
 ## Explicação completa
@@ -133,4 +133,4 @@ Para poupar custos, a instância será automaticamente encerrada se a utilizaç�
 
 Lembre-se que não existe nenhum tipo de proteção para acessar o GUI. Por isso, crie um túnel ssh e ligue-se através de http://localhost:7860 para automatic1111 ou http://localhost:9090 para Invoke-AI.
 
-Algumas partes do script são baseadas em https://github.com/mikeage/stable-diffusion-aws
+Algumas partes do script são baseadas em https://github.com/mikeage/sd-spot-aws
