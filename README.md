@@ -12,7 +12,7 @@ Pedido de aumento de quota na AWS
 
 Use o [RUNME](https://github.com/stateful/runme) para facilitar a execução dos snippets a seguir.
 
-### Lançar
+### Lançar Spot
 
 #### Criar o pedido de instância spot (que criará a instância após alguns segundos)
 
@@ -123,7 +123,7 @@ aws cloudwatch delete-alarms --alarm-names stable-diffusion-aws-stop-when-idle
 
 Este repositório facilita a execução da sua própria instância Spot do Stable Diffusion no EC2 AWS. Existem duas opções para o frontend; a primeira é a GUI em https://github.com/AUTOMATIC1111/stable-diffusion-webui, e a segunda é https://github.com/invoke-ai/InvokeAI. Por padrão, somente a AUTOMATIC1111 é instalado. Mas você pode optar por instalar a INVOKEAI ao iniciar. Lembre-se,  não existe memória RAM suficiente para rodar ambos ao mesmo tempo, uma vez que o carregamento de modelos + geração de imagens ocupará um pouco mais de 16GB de RAM. Existem variáveis de ambiente no início do setup.sh que podem ser usadas para definir quais são instaladas e/ou iniciadas. Os serviços do Systemd são instalados para ambos, e eles podem ser iniciados ou parados em tempo de execução livremente. Os nomes são `sdwebgui.service` e `invokeai.service`. 
 
-A secção "Iniciando" contém snippets para criar um pedido de instância spot que irá lançar uma instância spot. O preço de uma instância sob demanda g4dn.xlarge é $0,52/hora, mas uma instância spot flutua atualmente em volta de $0,17, o que representa uma poupança de 65%. Estas instruções definem um limite de preço de $0,20; se precisar de uma maior viabilidade, pode remover `MaxPrice=0.20,` e isso permitirá que custe até o preço total do sob demanda.
+A secção "Lançar Spot" contém snippets para criar um pedido de instância spot que irá lançar uma instância spot. O preço de uma instância sob demanda g4dn.xlarge é $0,52/hora, mas uma instância spot flutua atualmente em volta de $0,17, o que representa uma poupança de 65%. Estas instruções definem um limite de preço de $0,20; se precisar de uma maior viabilidade, pode remover `MaxPrice=0.20,` e isso permitirá que custe até o preço total do sob demanda.
 
 Esta instância spot pode ser parada e iniciada como uma instância normal. Quando parada, o único custo é de US$ 0,40/mês para o volume EBS. Ao remover todos os vestígios disso, observe que encerrar a instância fará com que o SpotInstanceRequest inicie uma nova instância, mas, por outro lado, cancelar o SpotInstanceRequest não encerrará automaticamente as instâncias que ele gerou. Assim, o SpotInstanceRequest deve ser cancelado primeiro e, em seguida, a instância deve ser explicitamente encerrada.
 
