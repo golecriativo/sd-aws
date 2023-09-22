@@ -133,4 +133,4 @@ Para poupar custos, a instância será automaticamente encerrada se a utilizaç�
 
 Lembre-se que não existe nenhum tipo de proteção para acessar o GUI. Por isso, crie um túnel ssh e ligue-se através de http://localhost:7860 para automatic1111 ou http://localhost:9090 para Invoke-AI.
 
-Algumas partes do script são baseadas em https://github.com/mikeage/sd-spot-aws
+Algumas partes do script são baseadas em [MIKEAGE](https://github.com/mikeage/stable-diffusion-aws)
